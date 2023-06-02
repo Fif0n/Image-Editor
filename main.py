@@ -1,3 +1,4 @@
-from Models.LoadFile import LoadFile
+from Models.WczytajPlik import WczytajPlik
+import cv2
+WczytajPlik.otworz_okno_startowe()
 
-LoadFile.open_popup()
