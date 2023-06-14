@@ -53,7 +53,8 @@ class Edytor(ABC):
             self.sciezka = obraz
         else:
             print("Podano nieporawne rozszerzenie pliku. Dozwolone rozszerzenia to: png, jpg, jpeg")
-            sys.exit()
+            self.obraz = None
+            self.sciezka = None
 
     @staticmethod
     def __sprawdz_rozszerzenie(plik: str):
@@ -96,10 +97,13 @@ sciezka_do_pliku = input("Podaj scieżkę do pliku: ")
 sciezka_zapisanego_pliku = wczytaj_plik.zapisz_plik(sciezka_do_pliku)
 
 if sciezka_zapisanego_pliku:
+    edytor = EdytorObrazu(sciezka_zapisanego_pliku)
+
+    if not edytor.obraz:
+        sys.exit()
+
     menu = Menu()
     menu.wypisz_menu()
-
-    edytor = EdytorObrazu(sciezka_zapisanego_pliku)
 
     while True:
         opcja = input()
