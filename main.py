@@ -1,6 +1,9 @@
 import os
 import shutil
 import cv2
+from abc import ABC, abstractmethod
+import sys
+import numpy
 
 class WczytajPlik:
     @staticmethod
@@ -33,11 +36,35 @@ class Menu:
 0.Wyjdź
         """)
 
+    @staticmethod
+    def przestrzenie_barw():
+        print("""
+1.Transformuj do RGB
+2.Transformuj do CMYK
+3.Transformuj do HSV
+0.Powrot
+        """)
 
-class Edytor:
+
+class Edytor(ABC):
     def __init__(self, obraz: str):
-        self.obraz = cv2.imread(obraz, 1)
-        self.sciezka = obraz
+        if self.__sprawdz_rozszerzenie(obraz):
+            self.obraz = cv2.imread(obraz, 1)
+            self.sciezka = obraz
+        else:
+            print("Podano nieporawne rozszerzenie pliku. Dozwolone rozszerzenia to: png, jpg, jpeg")
+            sys.exit()
+
+    @staticmethod
+    def __sprawdz_rozszerzenie(plik: str):
+        if plik.endswith('.png') or plik.endswith('.jpg') or plik.endswith('.jpeg'):
+            return True
+        return False
+
+
+class EdytorObrazu(Edytor):
+    def __init__(self, obraz: str):
+        super().__init__(obraz)
 
     def pokaz_obraz(self):
         cv2.imshow('Image', self.obraz)
@@ -47,15 +74,32 @@ class Edytor:
     def zapisz_obraz(self):
         cv2.imwrite('zapisany_obraz.png', self.obraz)
 
+    def __skala_szarosci(self):
+        return cv2.cvtColor(self.obraz, cv2.COLOR_BGR2GRAY)
+
+    def binaryzacja(self):
+        szara_skala = self.__skala_szarosci()
+        ret, self.obraz = cv2.threshold(szara_skala, 70, 255, 0)
+
+    def wygladzanie_przez_usrednianie(self):
+        macierz = (10, 10)
+        self.obraz = cv2.blur(self.obraz, macierz)
+
+    def wyrownanie_histogramu(self):
+        self.obraz = self.__skala_szarosci()
+        wyrownanie = cv2.equalizeHist(self.obraz)
+        self.obraz = numpy.hstack((self.obraz, wyrownanie))
+
 wczytaj_plik = WczytajPlik()
 
 sciezka_do_pliku = input("Podaj scieżkę do pliku: ")
 sciezka_zapisanego_pliku = wczytaj_plik.zapisz_plik(sciezka_do_pliku)
 
 if sciezka_zapisanego_pliku:
-    Menu().wypisz_menu()
+    menu = Menu()
+    menu.wypisz_menu()
 
-    edytor = Edytor(sciezka_zapisanego_pliku)
+    edytor = EdytorObrazu(sciezka_zapisanego_pliku)
 
     while True:
         opcja = input()
@@ -63,5 +107,27 @@ if sciezka_zapisanego_pliku:
             edytor.zapisz_obraz()
         elif opcja == '2':
             edytor.pokaz_obraz()
+        elif opcja == '3':
+            menu.przestrzenie_barw()
+            pod_opcja = input()
+            if pod_opcja == '1':
+                pass
+            elif pod_opcja == '2':
+                pass
+            elif pod_opcja == '3':
+                pass
+            elif pod_opcja == '0':
+                print("Powrócono do menu głównego")
+                menu.wypisz_menu()
+            else:
+                print("Brak takiej opcji. Powrócono do menu głównego")
+                menu.wypisz_menu()
+        elif opcja == '5':
+            edytor.binaryzacja()
+        elif opcja == '7':
+            edytor.wyrownanie_histogramu()
+        elif opcja == '9':
+            edytor.wygladzanie_przez_usrednianie()
         elif opcja == '0':
+            cv2.destroyAllWindows()
             break
