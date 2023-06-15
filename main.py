@@ -3,7 +3,7 @@ import shutil
 import cv2
 from abc import ABC, abstractmethod
 import sys
-import numpy
+import numpy as np
 
 class WczytajPlik:
     @staticmethod
@@ -89,7 +89,25 @@ class EdytorObrazu(Edytor):
     def wyrownanie_histogramu(self):
         self.obraz = self.__skala_szarosci()
         wyrownanie = cv2.equalizeHist(self.obraz)
-        self.obraz = numpy.hstack((self.obraz, wyrownanie))
+        self.obraz = np.hstack((self.obraz, wyrownanie))
+
+    def negatyw(self):
+        self.obraz = cv2.bitwise_not(self.obraz)
+
+    def sepia(self):
+        # Zmiana wartości pikseli na float
+        obraz = np.array(self.obraz, dtype=np.float64)
+        # Transformacja obrazu na podstawie macierzy sepi
+        obraz = cv2.transform(obraz, np.matrix([
+            [0.272, 0.534, 0.131],
+            [0.349, 0.686, 0.168],
+            [0.393, 0.769, 0.189]
+        ]))
+        # Wartości większe niż 255 zamieniamy na 255 (maksymalna wartość koloru piksela)
+        obraz[np.where(obraz > 255)] = 255
+        # Zamiana z powrotem na int
+        self.obraz = np.array(obraz, dtype=np.uint8)  # converting back to int
+
 
 wczytaj_plik = WczytajPlik()
 
@@ -99,7 +117,7 @@ sciezka_zapisanego_pliku = wczytaj_plik.zapisz_plik(sciezka_do_pliku)
 if sciezka_zapisanego_pliku:
     edytor = EdytorObrazu(sciezka_zapisanego_pliku)
 
-    if not edytor.obraz:
+    if edytor.obraz is None:
         sys.exit()
 
     menu = Menu()
@@ -126,8 +144,12 @@ if sciezka_zapisanego_pliku:
             else:
                 print("Brak takiej opcji. Powrócono do menu głównego")
                 menu.wypisz_menu()
+        elif opcja == '4':
+            edytor.negatyw()
         elif opcja == '5':
             edytor.binaryzacja()
+        elif opcja == '6':
+            edytor.sepia()
         elif opcja == '7':
             edytor.wyrownanie_histogramu()
         elif opcja == '9':
