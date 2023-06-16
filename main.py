@@ -1,9 +1,11 @@
 import os
 import shutil
 import cv2
-from abc import ABC, abstractmethod
+from abc import ABC
 import sys
 import numpy as np
+from tkinter import Tk
+from tkinter.filedialog import asksaveasfilename
 
 class WczytajPlik:
     @staticmethod
@@ -39,9 +41,8 @@ class Menu:
     @staticmethod
     def przestrzenie_barw():
         print("""
-1.Transformuj do RGB
-2.Transformuj do CMYK
-3.Transformuj do HSV
+1.Transformuj HSV
+2.Transformuj CMYK
 0.Powrot
         """)
 
@@ -51,6 +52,9 @@ class Edytor(ABC):
         if self.__sprawdz_rozszerzenie(obraz):
             self.obraz = cv2.imread(obraz, 1)
             self.sciezka = obraz
+            nazwa, rozszerzenie = os.path.splitext(obraz)
+            self.rozszerzenie = rozszerzenie[1:]
+            self.nazwa = nazwa
         else:
             print("Podano nieporawne rozszerzenie pliku. Dozwolone rozszerzenia to: png, jpg, jpeg")
             self.obraz = None
@@ -73,7 +77,16 @@ class EdytorObrazu(Edytor):
         cv2.destroyAllWindows()
 
     def zapisz_obraz(self):
-        cv2.imwrite('zapisany_obraz.png', self.obraz)
+        root = Tk()
+        root.withdraw()
+        sciezka = asksaveasfilename(
+            defaultextension=self.rozszerzenie,
+            initialfile=self.nazwa
+        )
+
+        if sciezka:
+            cv2.imwrite(sciezka, self.obraz)
+            print("Zapisano plik")
 
     def __skala_szarosci(self):
         return cv2.cvtColor(self.obraz, cv2.COLOR_BGR2GRAY)
@@ -88,8 +101,7 @@ class EdytorObrazu(Edytor):
 
     def wyrownanie_histogramu(self):
         self.obraz = self.__skala_szarosci()
-        wyrownanie = cv2.equalizeHist(self.obraz)
-        self.obraz = np.hstack((self.obraz, wyrownanie))
+        self.obraz = cv2.equalizeHist(self.obraz)
 
     def negatyw(self):
         self.obraz = cv2.bitwise_not(self.obraz)
@@ -98,15 +110,54 @@ class EdytorObrazu(Edytor):
         # Zmiana wartości pikseli na float
         obraz = np.array(self.obraz, dtype=np.float64)
         # Transformacja obrazu na podstawie macierzy sepi
-        obraz = cv2.transform(obraz, np.matrix([
-            [0.272, 0.534, 0.131],
-            [0.349, 0.686, 0.168],
-            [0.393, 0.769, 0.189]
-        ]))
+        obraz = cv2.transform(obraz, np.matrix(self.__macierz_do_ilosci_przestrzeni(obraz.shape[2])))
+
         # Wartości większe niż 255 zamieniamy na 255 (maksymalna wartość koloru piksela)
         obraz[np.where(obraz > 255)] = 255
         # Zamiana z powrotem na int
         self.obraz = np.array(obraz, dtype=np.uint8)  # converting back to int
+
+    def kompresja(self):
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+        result, encimg = cv2.imencode('.jpg', self.obraz, encode_param)
+        self.obraz = cv2.imdecode(encimg, 1)
+
+    def rgb_do_hsv(self):
+        self.obraz = cv2.cvtColor(self.obraz, cv2.COLOR_BGR2HSV)
+
+    def rgb_do_cmyk(self):
+        # Make float and divide by 255 to give BGRdash
+        obraz = self.obraz.astype(np.float64) / 255.
+
+        # Przstrzen dla czarnego
+        K = 1 - np.max(obraz, axis=2)
+        # Przestrzen dla cyjanu
+        C = (1 - obraz[..., 2] - K) / (1 - K)
+
+        # Przestrzen dla magenty
+        M = (1 - obraz[..., 1] - K) / (1 - K)
+
+        # Przestrzen dla zoltego
+        Y = (1 - obraz[..., 0] - K) / (1 - K)
+
+        # Laczymy przestrzenie i zamieniamy z powrotem na int
+        self.obraz = (np.dstack((C, M, Y, K)) * 255).astype(np.uint8)
+    @staticmethod
+    def __macierz_do_ilosci_przestrzeni(ilosc_przestrzeni: int):
+        if ilosc_przestrzeni == 3:
+            return [
+                [0.272, 0.534, 0.131],
+                [0.349, 0.686, 0.168],
+                [0.393, 0.769, 0.189],
+                [0.393, 0.769, 0.189]
+            ]
+        if ilosc_przestrzeni == 4:
+            return [
+                [0.272, 0.534, 0.131, 0],
+                [0.349, 0.686, 0.168, 0],
+                [0.393, 0.769, 0.189, 0],
+                [0, 0, 0, 1]
+            ]
 
 
 wczytaj_plik = WczytajPlik()
@@ -132,18 +183,18 @@ if sciezka_zapisanego_pliku:
         elif opcja == '3':
             menu.przestrzenie_barw()
             pod_opcja = input()
+            wiadomosc_zwrotna = "Powrócono do menu głównego"
+
             if pod_opcja == '1':
-                pass
+                edytor.rgb_do_hsv()
             elif pod_opcja == '2':
-                pass
-            elif pod_opcja == '3':
-                pass
+                edytor.rgb_do_cmyk()
             elif pod_opcja == '0':
-                print("Powrócono do menu głównego")
                 menu.wypisz_menu()
             else:
-                print("Brak takiej opcji. Powrócono do menu głównego")
+                wiadomosc_zwrotna = "Brak takiej opcji. Powrócono do menu głównego"
                 menu.wypisz_menu()
+            print(wiadomosc_zwrotna)
         elif opcja == '4':
             edytor.negatyw()
         elif opcja == '5':
@@ -152,8 +203,11 @@ if sciezka_zapisanego_pliku:
             edytor.sepia()
         elif opcja == '7':
             edytor.wyrownanie_histogramu()
+        elif opcja == '8':
+            edytor.kompresja()
         elif opcja == '9':
             edytor.wygladzanie_przez_usrednianie()
         elif opcja == '0':
             cv2.destroyAllWindows()
             break
+        menu.wypisz_menu()
