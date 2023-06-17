@@ -51,20 +51,29 @@ class Edytor(ABC):
     def __init__(self, obraz: str):
         if self.__sprawdz_rozszerzenie(obraz):
             self.obraz = cv2.imread(obraz, 1)
-            self.sciezka = obraz
             nazwa, rozszerzenie = os.path.splitext(obraz)
             self.rozszerzenie = rozszerzenie[1:]
             self.nazwa = nazwa
         else:
             print("Podano nieporawne rozszerzenie pliku. Dozwolone rozszerzenia to: png, jpg, jpeg")
             self.obraz = None
-            self.sciezka = None
+            self.rozszerzenie = None
+            self.rozszerzenie = None
 
     @staticmethod
     def __sprawdz_rozszerzenie(plik: str):
         if plik.endswith('.png') or plik.endswith('.jpg') or plik.endswith('.jpeg'):
             return True
         return False
+
+    def _ile_prestrzeni_barw(self):
+        try:
+            return self.obraz.shape[2]
+        except IndexError:
+            return None
+
+    def _skala_szarosci(self):
+        return cv2.cvtColor(self.obraz, cv2.COLOR_BGR2GRAY)
 
 
 class EdytorObrazu(Edytor):
@@ -88,29 +97,39 @@ class EdytorObrazu(Edytor):
             cv2.imwrite(sciezka, self.obraz)
             print("Zapisano plik")
 
-    def __skala_szarosci(self):
-        return cv2.cvtColor(self.obraz, cv2.COLOR_BGR2GRAY)
-
     def binaryzacja(self):
-        szara_skala = self.__skala_szarosci()
-        ret, self.obraz = cv2.threshold(szara_skala, 70, 255, 0)
+        if self._ile_prestrzeni_barw() == 3:
+            szara_skala = self._skala_szarosci()
+            ret, self.obraz = cv2.threshold(szara_skala, 70, 255, 0)
+            return None
+        print("Binaryzacja nie jest obsługiwana dla aktualnych przestrzeni barw")
 
     def wygladzanie_przez_usrednianie(self):
         macierz = (10, 10)
         self.obraz = cv2.blur(self.obraz, macierz)
 
     def wyrownanie_histogramu(self):
-        self.obraz = self.__skala_szarosci()
+        if self._ile_prestrzeni_barw() != 3:
+            print("Binaryzacja nie jest obsługiwana dla aktualnych przestrzeni barw")
+            return None
+        self.obraz = self._skala_szarosci()
+        print(self.obraz.shape)
         self.obraz = cv2.equalizeHist(self.obraz)
+
 
     def negatyw(self):
         self.obraz = cv2.bitwise_not(self.obraz)
 
     def sepia(self):
+        ilosc_przestrzeni = self._ile_prestrzeni_barw()
+        if ilosc_przestrzeni is None:
+            print("Dla danej ilość przestrzeni barw nie jest wspierana transformacja")
+            return None
+
         # Zmiana wartości pikseli na float
         obraz = np.array(self.obraz, dtype=np.float64)
         # Transformacja obrazu na podstawie macierzy sepi
-        obraz = cv2.transform(obraz, np.matrix(self.__macierz_do_ilosci_przestrzeni(obraz.shape[2])))
+        obraz = cv2.transform(obraz, np.matrix(self.__macierz_do_ilosci_przestrzeni(ilosc_przestrzeni)))
 
         # Wartości większe niż 255 zamieniamy na 255 (maksymalna wartość koloru piksela)
         obraz[np.where(obraz > 255)] = 255
@@ -123,14 +142,25 @@ class EdytorObrazu(Edytor):
         self.obraz = cv2.imdecode(encimg, 1)
 
     def rgb_do_hsv(self):
+        if self._ile_prestrzeni_barw() != 3:
+            print("Transformacja do HSV nie jest obsługiwana dla danych przestrzeni barw")
+            return None
         self.obraz = cv2.cvtColor(self.obraz, cv2.COLOR_BGR2HSV)
 
     def rgb_do_cmyk(self):
-        # Make float and divide by 255 to give BGRdash
+        przestrzenie_barw = self._ile_prestrzeni_barw()
+        if przestrzenie_barw == 4:
+            print("Obraz jest już w przestrzeni barw CMYK")
+            return None
+        elif przestrzenie_barw is None:
+            print("Na danym obrazie nie jest wspierana transformacja barw do CMYK")
+            return None
+        # Zamiana wartości pikseli na float
         obraz = self.obraz.astype(np.float64) / 255.
 
         # Przstrzen dla czarnego
         K = 1 - np.max(obraz, axis=2)
+
         # Przestrzen dla cyjanu
         C = (1 - obraz[..., 2] - K) / (1 - K)
 
@@ -142,13 +172,13 @@ class EdytorObrazu(Edytor):
 
         # Laczymy przestrzenie i zamieniamy z powrotem na int
         self.obraz = (np.dstack((C, M, Y, K)) * 255).astype(np.uint8)
+
     @staticmethod
     def __macierz_do_ilosci_przestrzeni(ilosc_przestrzeni: int):
         if ilosc_przestrzeni == 3:
             return [
                 [0.272, 0.534, 0.131],
                 [0.349, 0.686, 0.168],
-                [0.393, 0.769, 0.189],
                 [0.393, 0.769, 0.189]
             ]
         if ilosc_przestrzeni == 4:
