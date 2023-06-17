@@ -21,6 +21,9 @@ class WczytajPlik:
             print('Podano niepoprawną ściężkę do pliku')
         except FileNotFoundError:
             print('Podano niepoprawną ściężkę do pliku')
+        except OSError:
+            print('Podano niepoprawną ściężkę do pliku')
+
 
 class Menu:
     @staticmethod
@@ -43,6 +46,15 @@ class Menu:
         print("""
 1.Transformuj HSV
 2.Transformuj CMYK
+0.Powrot
+        """)
+
+    @staticmethod
+    def po_binaryzacji():
+        print("""
+1.Erozja
+2.Otwarcie
+3.Zamkniecie
 0.Powrot
         """)
 
@@ -103,6 +115,18 @@ class EdytorObrazu(Edytor):
             ret, self.obraz = cv2.threshold(szara_skala, 70, 255, 0)
             return None
         print("Binaryzacja nie jest obsługiwana dla aktualnych przestrzeni barw")
+    @staticmethod
+    def __macierz_o_binaryzacji():
+        return np.ones((5, 5), np.uint8)
+
+    def erozja(self):
+        macierz = self.__macierz_o_binaryzacji()
+        self.obraz = cv2.erode(self.obraz, macierz)
+
+    def otwarcie_zamkniecie(self, opcja: int):
+        typ = cv2.MORPH_OPEN if opcja == 1 else cv2.MORPH_CLOSE
+        macierz = self.__macierz_o_binaryzacji()
+        self.obraz = cv2.morphologyEx(self.obraz, typ, macierz)
 
     def wygladzanie_przez_usrednianie(self):
         macierz = (10, 10)
@@ -115,7 +139,6 @@ class EdytorObrazu(Edytor):
         self.obraz = self._skala_szarosci()
         print(self.obraz.shape)
         self.obraz = cv2.equalizeHist(self.obraz)
-
 
     def negatyw(self):
         self.obraz = cv2.bitwise_not(self.obraz)
@@ -205,7 +228,9 @@ if sciezka_zapisanego_pliku:
     menu.wypisz_menu()
 
     while True:
+        wiadomosc_zwrotna = "Powrócono do menu głównego"
         opcja = input()
+
         if opcja == '1':
             edytor.zapisz_obraz()
         elif opcja == '2':
@@ -213,22 +238,34 @@ if sciezka_zapisanego_pliku:
         elif opcja == '3':
             menu.przestrzenie_barw()
             pod_opcja = input()
-            wiadomosc_zwrotna = "Powrócono do menu głównego"
 
             if pod_opcja == '1':
                 edytor.rgb_do_hsv()
             elif pod_opcja == '2':
                 edytor.rgb_do_cmyk()
             elif pod_opcja == '0':
-                menu.wypisz_menu()
+                pass
             else:
                 wiadomosc_zwrotna = "Brak takiej opcji. Powrócono do menu głównego"
-                menu.wypisz_menu()
             print(wiadomosc_zwrotna)
         elif opcja == '4':
             edytor.negatyw()
         elif opcja == '5':
             edytor.binaryzacja()
+            menu.po_binaryzacji()
+            pod_opcja = input()
+
+            if pod_opcja == '1':
+                edytor.erozja()
+            elif pod_opcja == '2':
+                edytor.otwarcie_zamkniecie(1)
+            elif pod_opcja == '3':
+                edytor.otwarcie_zamkniecie(2)
+            elif pod_opcja == '0':
+                pass
+            else:
+                wiadomosc_zwrotna = "Brak takiej opcji. Powrócono do menu głównego"
+            print(wiadomosc_zwrotna)
         elif opcja == '6':
             edytor.sepia()
         elif opcja == '7':
