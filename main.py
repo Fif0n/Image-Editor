@@ -52,6 +52,7 @@ class Menu:
     @staticmethod
     def po_binaryzacji():
         print("""
+Dodatkowe opcje po Binaryzacji:
 1.Erozja
 2.Otwarcie
 3.Zamkniecie
@@ -113,8 +114,9 @@ class EdytorObrazu(Edytor):
         if self._ile_prestrzeni_barw() == 3:
             szara_skala = self._skala_szarosci()
             ret, self.obraz = cv2.threshold(szara_skala, 70, 255, 0)
-            return None
+            return True
         print("Binaryzacja nie jest obsługiwana dla aktualnych przestrzeni barw")
+        return None
     @staticmethod
     def __macierz_o_binaryzacji():
         return np.ones((5, 5), np.uint8)
@@ -251,21 +253,21 @@ if sciezka_zapisanego_pliku:
         elif opcja == '4':
             edytor.negatyw()
         elif opcja == '5':
-            edytor.binaryzacja()
-            menu.po_binaryzacji()
-            pod_opcja = input()
+            if edytor.binaryzacja():
+                menu.po_binaryzacji()
+                pod_opcja = input()
 
-            if pod_opcja == '1':
-                edytor.erozja()
-            elif pod_opcja == '2':
-                edytor.otwarcie_zamkniecie(1)
-            elif pod_opcja == '3':
-                edytor.otwarcie_zamkniecie(2)
-            elif pod_opcja == '0':
-                pass
-            else:
-                wiadomosc_zwrotna = "Brak takiej opcji. Powrócono do menu głównego"
-            print(wiadomosc_zwrotna)
+                if pod_opcja == '1':
+                    edytor.erozja()
+                elif pod_opcja == '2':
+                    edytor.otwarcie_zamkniecie(1)
+                elif pod_opcja == '3':
+                    edytor.otwarcie_zamkniecie(2)
+                elif pod_opcja == '0':
+                    pass
+                else:
+                    wiadomosc_zwrotna = "Brak takiej opcji. Powrócono do menu głównego"
+                print(wiadomosc_zwrotna)
         elif opcja == '6':
             edytor.sepia()
         elif opcja == '7':
