@@ -7,6 +7,7 @@ import numpy as np
 from tkinter import Tk
 from tkinter.filedialog import asksaveasfilename
 
+
 class WczytajPlik:
     @staticmethod
     def zapisz_plik(sciezka_pliku: str) -> str:
@@ -118,16 +119,23 @@ class EdytorObrazu(Edytor):
         print("Binaryzacja nie jest obsługiwana dla aktualnych przestrzeni barw")
         return None
     @staticmethod
-    def __macierz_o_binaryzacji():
+    def __macierz_po_binaryzacji():
         return np.ones((5, 5), np.uint8)
 
-    def erozja(self):
-        macierz = self.__macierz_o_binaryzacji()
+    def erozja(self, opcja: int = 1):
+        macierz = None
+        if opcja == 1:
+            pass
+        elif opcja == 2:
+            macierz = self.__macierz_po_binaryzacji()
+        else:
+            print("Nie znaleziono takiej opcji")
+            return None
         self.obraz = cv2.erode(self.obraz, macierz)
 
     def otwarcie_zamkniecie(self, opcja: int):
         typ = cv2.MORPH_OPEN if opcja == 1 else cv2.MORPH_CLOSE
-        macierz = self.__macierz_o_binaryzacji()
+        macierz = self.__macierz_po_binaryzacji()
         self.obraz = cv2.morphologyEx(self.obraz, typ, macierz)
 
     def wygladzanie_przez_usrednianie(self):
@@ -136,7 +144,7 @@ class EdytorObrazu(Edytor):
 
     def wyrownanie_histogramu(self):
         if self._ile_prestrzeni_barw() != 3:
-            print("Binaryzacja nie jest obsługiwana dla aktualnych przestrzeni barw")
+            print("Wyrównanie histogramu nie jest obsługiwana dla aktualnych przestrzeni barw")
             return None
         self.obraz = self._skala_szarosci()
         print(self.obraz.shape)
@@ -180,6 +188,7 @@ class EdytorObrazu(Edytor):
         elif przestrzenie_barw is None:
             print("Na danym obrazie nie jest wspierana transformacja barw do CMYK")
             return None
+        np.seterr(divide='ignore', invalid='ignore')
         # Zamiana wartości pikseli na float
         obraz = self.obraz.astype(np.float64) / 255.
 
@@ -258,7 +267,8 @@ if sciezka_zapisanego_pliku:
                 pod_opcja = input()
 
                 if pod_opcja == '1':
-                    edytor.erozja()
+                    typ_erozji = int(input("Podaj typ erozji (1 => czterościenna/2 => ośmiościenna): "))
+                    edytor.erozja(typ_erozji)
                 elif pod_opcja == '2':
                     edytor.otwarcie_zamkniecie(1)
                 elif pod_opcja == '3':
